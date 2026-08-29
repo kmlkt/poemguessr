@@ -1327,6 +1327,7 @@ dependencies = [
  "itertools",
  "markup5ever",
  "maud",
+ "rand",
  "reqwest",
  "scraper",
  "serde",
