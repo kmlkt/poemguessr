@@ -1329,6 +1329,8 @@ dependencies = [
  "maud",
  "reqwest",
  "scraper",
+ "serde",
+ "serde_json",
  "sqlx",
  "thiserror",
  "tokio",
