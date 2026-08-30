@@ -6,7 +6,7 @@
       "args": ["build"],
     },
     "env": {
-      "PORT": "3000",
+      "HOST": "0.0.0.0:3000",
       "DATABASE_URL": "sqlite://app.db",
     },
     "program": "$ZED_WORKTREE_ROOT/target/debug/poemguessr",

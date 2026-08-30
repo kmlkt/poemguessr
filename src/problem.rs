@@ -98,10 +98,16 @@ fn cut_poem_part(rng: &mut impl rand::Rng, poem_part: Vec<String>) -> Vec<String
 }
 
 pub struct Problem {
-    pub poem_id: i32,
-    pub right_author: &'static str,
+    poem_id: i32,
+    right_author: &'static str,
     pub poem: Vec<String>,
     pub authors: Vec<&'static str>,
+}
+
+pub struct SolutionComment {
+    pub poem_id: i32,
+    pub right: bool,
+    pub right_author: &'static str,
 }
 
 impl Problem {
@@ -131,10 +137,12 @@ impl Problem {
             authors: authors,
         })
     }
-    pub fn check_answer(self, db: &PoemDatabase, author: &str) -> bool {
-        db.get(author)
-            .unwrap_or(&vec![])
-            .iter()
-            .any(|(id, _)| *id == self.poem_id)
+
+    pub fn check_answer(&self, author: &str) -> SolutionComment {
+        SolutionComment {
+            poem_id: self.poem_id,
+            right: author == self.right_author,
+            right_author: self.right_author,
+        }
     }
 }
