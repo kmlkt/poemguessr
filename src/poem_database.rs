@@ -40,6 +40,11 @@ pub async fn get_poem_parts_count(id: i32) -> AppResult<i32> {
     Ok(100000)
 }
 
-pub async fn get_poem_part(id: i32, part_id: i32) -> AppResult<String> {
-    Ok(tokio::fs::read_to_string(poem_part_path(id, part_id)).await?)
+pub async fn get_poem_part(id: i32, part_id: i32) -> AppResult<Vec<String>> {
+    tracing::trace!(id, part_id, "get_poem_part");
+    Ok(tokio::fs::read_to_string(poem_part_path(id, part_id))
+        .await?
+        .lines()
+        .map(|x| x.into())
+        .collect())
 }

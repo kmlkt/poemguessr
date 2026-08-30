@@ -1,6 +1,4 @@
-use std::result;
-
-use rand::seq::IndexedRandom;
+use rand::{RngExt, SeedableRng, seq::IndexedRandom};
 
 use crate::{
     common::AppResult,
@@ -52,67 +50,74 @@ const MINOR_AUTHORS: &[&str] = &[
     "Гавриил Державин",
 ];
 
-fn random_author() -> &'static str {
-    let r = rand::random_range(0..100);
+fn random_author(rng: &mut impl rand::Rng) -> &'static str {
+    let r = rng.random_range(0..100);
     let group = match r {
         0..40 => MAJOR_AUTHORS,
         40..80 => MEDIUM_AUTHORS,
         _ => MINOR_AUTHORS,
     };
-    group.choose(&mut rand::rng()).unwrap()
+    group.choose(rng).unwrap()
 }
 
-fn random_poem(db: &PoemDatabase, author: &str) -> (i32, String) {
-    db.get(author)
-        .unwrap()
-        .choose(&mut rand::rng())
-        .unwrap()
-        .clone()
+fn random_poem(rng: &mut impl rand::Rng, db: &PoemDatabase, author: &str) -> (i32, String) {
+    db.get(author).unwrap().choose(rng).unwrap().clone()
 }
 
-fn row_count(s: &str) -> usize {
-    s.trim().matches("\n").count() + 1
-}
-
-fn too_small(s: &str) -> bool {
-    row_count(s) < 4
-}
-
-async fn random_poem_part(poem_id: i32) -> AppResult<String> {
+async fn random_poem_part(rng: &mut impl rand::Rng, poem_id: i32) -> AppResult<Vec<String>> {
     let parts_count = get_poem_parts_count(poem_id).await?;
-    let part_id = rand::random_range(0..parts_count);
-    let mut result: String = get_poem_part(poem_id, part_id).await?;
+    let part_id = rng.random_range(0..parts_count);
+    let mut result = get_poem_part(poem_id, part_id).await?;
 
     let mut i = part_id + 1;
-    while too_small(&result) && i < parts_count {
-        result += "\n\n";
-        result += &get_poem_part(i, part_id).await?;
+    while result.len() < 4 && i < parts_count {
+        result.push("".into());
+        result.append(&mut get_poem_part(poem_id, i).await?);
         i += 1;
     }
 
     i = part_id - 1;
-    while too_small(&result) && i >= 0 {
-        result = get_poem_part(i, part_id).await? + "\n\n" + &result;
+    while result.len() < 4 && i >= 0 {
+        let mut new_result = get_poem_part(poem_id, i).await?;
+        new_result.push("".into());
+        new_result.append(&mut result);
+        result = new_result;
         i -= 1;
     }
 
     Ok(result)
 }
 
+fn cut_poem_part(rng: &mut impl rand::Rng, poem_part: Vec<String>) -> Vec<String> {
+    if poem_part.len() > 12 {
+        let start = rng.random_range(0..(poem_part.len() - 11));
+        poem_part[start..(start + 12)].to_vec()
+    } else {
+        poem_part
+    }
+}
+
 pub struct Problem {
-    poem: String,
-    authors: Vec<&'static str>,
+    pub poem_id: i32,
+    pub right_author: &'static str,
+    pub poem: Vec<String>,
+    pub authors: Vec<&'static str>,
 }
 
 impl Problem {
-    pub async fn random(db: &PoemDatabase) -> AppResult<Problem> {
-        let author = random_author();
-        let (poem_id, _) = random_poem(db, author);
-        let poem_part = random_poem_part(poem_id).await?;
+    pub async fn from_seed(seed: u64, db: &PoemDatabase) -> AppResult<Problem> {
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
+        Problem::random(&mut rng, db).await
+    }
+    pub async fn random(rng: &mut impl rand::Rng, db: &PoemDatabase) -> AppResult<Problem> {
+        let author = random_author(rng);
+        let (poem_id, _) = random_poem(rng, db, author);
+        let poem_part = random_poem_part(rng, poem_id).await?;
+        let poem_part_cutted = cut_poem_part(rng, poem_part);
 
         let mut authors = vec![author];
         while authors.len() < 4 {
-            let next_author = random_author();
+            let next_author = random_author(rng);
             if !authors.contains(&next_author) {
                 authors.push(next_author);
             }
@@ -120,8 +125,16 @@ impl Problem {
         authors.sort();
 
         Ok(Problem {
-            poem: poem_part,
+            poem_id,
+            right_author: author,
+            poem: poem_part_cutted,
             authors: authors,
         })
+    }
+    pub fn check_answer(self, db: &PoemDatabase, author: &str) -> bool {
+        db.get(author)
+            .unwrap_or(&vec![])
+            .iter()
+            .any(|(id, _)| *id == self.poem_id)
     }
 }

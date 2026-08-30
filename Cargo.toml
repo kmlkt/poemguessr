@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 axum = "0.8.9"
-maud = "0.27.0"
+maud = {version = "0.27.0", features = ["axum"]}
 thiserror = "2.0.20"
 tokio = "1.53.1"
 tower-http = { version = "0.7.0", features = ["trace"] }
@@ -20,3 +20,4 @@ itertools = "0.15.0"
 serde = "1.0.229"
 serde_json = "1.0.151"
 rand = "0.10.2"
+rand_chacha = "0.10.0"
